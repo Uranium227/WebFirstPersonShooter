@@ -8,7 +8,6 @@
     body { overflow: hidden; background: #0f1115; font-family: monospace; color: #ece8e1; }
     canvas { display: block; }
 
-    /* Lobby & Pause Overlay */
     #overlay {
       position: fixed; inset: 0; background: rgba(12, 14, 18, 0.92);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -17,12 +16,13 @@
     #overlay h1 { font-size: 30px; letter-spacing: 5px; color: #ff4655; }
     .lobby-box {
       background: #181c24; border: 1px solid #2c3342; border-left: 4px solid #ff4655;
-      padding: 20px 24px; width: 380px; display: flex; flex-direction: column; gap: 12px;
+      padding: 20px 24px; width: 400px; display: flex; flex-direction: column; gap: 12px;
     }
     .row { display: flex; gap: 8px; }
     input {
       flex: 1; background: #0f1115; border: 1px solid #353b4a; color: #ece8e1;
       padding: 10px 12px; font-family: monospace; font-size: 14px; outline: none;
+      user-select: text;
     }
     input:focus { border-color: #ff4655; }
     button {
@@ -39,10 +39,9 @@
       border: 1px solid rgba(0, 255, 204, 0.3); padding: 8px 10px; display: none;
       justify-content: space-between; align-items: center;
     }
-    #status-text { font-size: 12px; color: #9fa6b2; min-height: 16px; }
+    #status-text { font-size: 12px; color: #9fa6b2; min-height: 16px; word-break: break-word; }
     .controls-hint { font-size: 12px; color: #7a8291; text-align: center; }
 
-    /* Crosshair & Scope */
     #crosshair {
       position: fixed; top: 50%; left: 50%; width: 16px; height: 16px;
       transform: translate(-50%, -50%); pointer-events: none; z-index: 5;
@@ -73,7 +72,6 @@
       box-shadow: 0 0 6px #ff4655;
     }
 
-    /* HUD, Killfeed & Scoreboard */
     #hud {
       position: fixed; bottom: 24px; left: 28px; right: 28px;
       display: flex; justify-content: space-between; font-size: 18px;
@@ -123,7 +121,7 @@
         <button id="deploy-btn" class="secondary" style="flex:1">PLAY / RESUME</button>
       </div>
       <div class="row">
-        <input id="join-input" type="text" maxlength="10" placeholder="ROOM CODE" style="text-transform:uppercase" />
+        <input id="join-input" type="text" placeholder="ROOM CODE OR INVITE URL" />
         <button id="join-btn" class="secondary">JOIN</button>
       </div>
       <div id="room-banner">
@@ -179,7 +177,6 @@
       new THREE.Vector3(24, 1.7, -24)
     ];
 
-    // Core Three.js setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x161920);
     scene.fog = new THREE.Fog(0x161920, 22, 100);
@@ -192,7 +189,6 @@
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Lighting
     scene.add(new THREE.HemisphereLight(0xddeeff, 0x222630, 0.95));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
     dirLight.position.set(20, 35, 15);
@@ -200,7 +196,6 @@
     dirLight.shadow.mapSize.set(2048, 2048);
     scene.add(dirLight);
 
-    // Arena geometry & colliders
     const colliders = [];
     const wallMeshes = [];
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x232732, roughness: 0.85 });
@@ -223,7 +218,6 @@
       return mesh;
     }
 
-    // Perimeter & symmetrical competitive cover
     addBox(0, 3, -40, 80, 6, 1);
     addBox(0, 3, 40, 80, 6, 1);
     addBox(-40, 3, 0, 1, 6, 80);
@@ -239,7 +233,6 @@
     addBox(-22, 1.2, 0, 1.5, 2.4, 6);
     addBox(22, 1.2, 0, 1.5, 2.4, 6);
 
-    // First-person viewmodel
     const weaponGroup = new THREE.Group();
     const gunBody = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.11, 0.55),
@@ -271,7 +264,6 @@
     camera.add(weaponGroup);
     scene.add(camera);
 
-    // Practice targets (always available)
     const targets = [];
     const shootableMeshes = [...wallMeshes];
     const botBodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 });
@@ -285,4 +277,696 @@
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.36), botHeadMat);
       head.position.y = 1.52;
       head.castShadow = true;
-      group.add
+      group.add(body, head);
+      group.position.set(x, 0, z);
+      scene.add(group);
+
+      const bot = { group, hp: 100, originX: x, range, speed: 1.6, phase: Math.random() * 6, respawnTimer: 0 };
+      body.userData = { type: 'bot', bot, isHead: false };
+      head.userData = { type: 'bot', bot, isHead: true };
+      targets.push(bot);
+      shootableMeshes.push(body, head);
+    }
+    spawnBot(-8, -32, 5);
+    spawnBot(8, 32, 5);
+
+    const remotePlayers = new Map();
+    const enemyBodyMat = new THREE.MeshStandardMaterial({ color: 0xff4655 });
+    const enemyHeadMat = new THREE.MeshStandardMaterial({ color: 0xffd166 });
+
+    function makeNameSprite(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(15,17,21,0.75)';
+      ctx.fillRect(24, 12, 208, 40);
+      ctx.font = 'bold 24px monospace';
+      ctx.fillStyle = '#ece8e1';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 128, 40);
+      const tex = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+      sprite.scale.set(1.6, 0.4, 1);
+      sprite.position.y = 2.05;
+      return sprite;
+    }
+
+    function createRemotePlayer(id, name = 'Player') {
+      if (remotePlayers.has(id)) return remotePlayers.get(id);
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.3, 0.4), enemyBodyMat);
+      body.position.y = 0.65;
+      body.castShadow = true;
+
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.36), enemyHeadMat);
+      head.position.y = 1.52;
+      head.castShadow = true;
+
+      const gun = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.08, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0x111317 })
+      );
+      gun.position.set(0.25, 1.25, -0.35);
+
+      const label = makeNameSprite(name);
+      group.add(body, head, gun, label);
+      scene.add(group);
+
+      const rp = {
+        id,
+        name,
+        group,
+        body,
+        head,
+        label,
+        targetPos: new THREE.Vector3(0, 0, 0),
+        targetYaw: 0,
+        kills: 0,
+        deaths: 0,
+        alive: true
+      };
+      body.userData = { type: 'player', peerId: id, isHead: false };
+      head.userData = { type: 'player', peerId: id, isHead: true };
+      shootableMeshes.push(body, head);
+      remotePlayers.set(id, rp);
+      updateScoreboard();
+      return rp;
+    }
+
+    function removeRemotePlayer(id) {
+      const rp = remotePlayers.get(id);
+      if (!rp) return;
+      scene.remove(rp.group);
+      const idxB = shootableMeshes.indexOf(rp.body);
+      if (idxB > -1) shootableMeshes.splice(idxB, 1);
+      const idxH = shootableMeshes.indexOf(rp.head);
+      if (idxH > -1) shootableMeshes.splice(idxH, 1);
+      remotePlayers.delete(id);
+      updateScoreboard();
+    }
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, type, duration, gainVal = 0.15) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + duration);
+      gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    const player = {
+      id: 'local',
+      name: 'Agent-' + Math.floor(100 + Math.random() * 900),
+      pos: SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)].clone(),
+      vel: new THREE.Vector3(),
+      yaw: 0,
+      pitch: 0,
+      grounded: false,
+      scoped: false,
+      hp: 100,
+      ammo: 25,
+      maxAmmo: 25,
+      reloading: false,
+      fireCooldown: 0,
+      recoilPitch: 0,
+      recoilYaw: 0,
+      kills: 0,
+      deaths: 0
+    };
+    camera.position.copy(player.pos);
+
+    const overlay = document.getElementById('overlay');
+    const nameInput = document.getElementById('name-input');
+    const hostBtn = document.getElementById('host-btn');
+    const joinBtn = document.getElementById('join-btn');
+    const deployBtn = document.getElementById('deploy-btn');
+    const joinInput = document.getElementById('join-input');
+    const roomBanner = document.getElementById('room-banner');
+    const roomCodeDisplay = document.getElementById('room-code-display');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const statusText = document.getElementById('status-text');
+    const crosshairEl = document.getElementById('crosshair');
+    const scopeOverlayEl = document.getElementById('scope-overlay');
+    const hpEl = document.getElementById('hp');
+    const ammoEl = document.getElementById('ammo');
+    const killsEl = document.getElementById('kills');
+    const deathsEl = document.getElementById('deaths');
+    const scoreListEl = document.getElementById('score-list');
+    const killfeedEl = document.getElementById('killfeed');
+    const hitmarkerEl = document.getElementById('hitmarker');
+    const damageFlashEl = document.getElementById('damage-flash');
+
+    nameInput.value = player.name;
+    nameInput.addEventListener('input', () => {
+      player.name = nameInput.value.trim() || 'Agent';
+      broadcast({ type: 'meta', name: player.name, kills: player.kills, deaths: player.deaths });
+      updateScoreboard();
+    });
+
+    function addKillfeed(msg) {
+      const div = document.createElement('div');
+      div.className = 'kill-msg';
+      div.textContent = msg;
+      killfeedEl.appendChild(div);
+      setTimeout(() => div.remove(), 4500);
+    }
+
+    function updateScoreboard() {
+      const rows = [{ name: `${player.name} (YOU)`, kills: player.kills, deaths: player.deaths }];
+      for (const rp of remotePlayers.values()) {
+        rows.push({ name: rp.name, kills: rp.kills, deaths: rp.deaths });
+      }
+      rows.sort((a, b) => b.kills - a.kills);
+      scoreListEl.innerHTML = rows
+        .map(r => `<div>${r.name}: <strong>${r.kills}K</strong> / ${r.deaths}D</div>`)
+        .join('');
+    }
+    updateScoreboard();
+
+    // ==========================================
+    // P2P MULTIPLAYER NETWORKING (PeerJS Mesh)
+    // ==========================================
+    const ROOM_PREFIX = 'tacfps-ghp-';
+    let peer = null;
+    let isHost = false;
+    let currentRoomCode = '';
+    let joinTimeout = null;
+    const connections = new Map();
+
+    function randomCode() {
+      return Math.random().toString(36).substring(2, 7).toUpperCase();
+    }
+
+    function parseRoomCode(raw) {
+      const trimmed = raw.trim();
+      if (!trimmed) return '';
+      try {
+        if (trimmed.includes('room=')) {
+          const url = new URL(trimmed.startsWith('http') ? trimmed : 'https://x.test/' + trimmed);
+          const param = url.searchParams.get('room');
+          if (param) return param.trim().toUpperCase();
+        }
+      } catch (_) {}
+      return trimmed.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    }
+
+    function resetButtons() {
+      hostBtn.disabled = false;
+      joinBtn.disabled = false;
+      if (joinTimeout) { clearTimeout(joinTimeout); joinTimeout = null; }
+    }
+
+    function broadcast(data, excludeId = null) {
+      for (const [id, conn] of connections.entries()) {
+        if (id !== excludeId && conn.open) {
+          conn.send(data);
+        }
+      }
+    }
+
+    function sendTo(peerId, data) {
+      const conn = connections.get(peerId);
+      if (conn && conn.open) conn.send(data);
+    }
+
+    function setupConnection(conn) {
+      conn.on('open', () => {
+        if (joinTimeout) { clearTimeout(joinTimeout); joinTimeout = null; }
+        connections.set(conn.peer, conn);
+        createRemotePlayer(conn.peer, 'Connecting...');
+        conn.send({
+          type: 'welcome',
+          name: player.name,
+          kills: player.kills,
+          deaths: player.deaths,
+          x: player.pos.x,
+          y: player.pos.y,
+          z: player.pos.z,
+          yaw: player.yaw,
+          peers: isHost ? Array.from(connections.keys()).filter(id => id !== conn.peer) : []
+        });
+        statusText.textContent = `Connected (${connections.size} peer${connections.size === 1 ? '' : 's'} online). Click PLAY.`;
+      });
+
+      conn.on('data', (msg) => {
+        if (!msg || typeof msg !== 'object') return;
+
+        if (msg.type === 'welcome') {
+          const rp = createRemotePlayer(conn.peer, msg.name);
+          rp.name = msg.name;
+          rp.kills = msg.kills || 0;
+          rp.deaths = msg.deaths || 0;
+          if (typeof msg.x === 'number') {
+            rp.targetPos.set(msg.x, msg.y - 1.7, msg.z);
+            rp.group.position.copy(rp.targetPos);
+            rp.targetYaw = msg.yaw || 0;
+            rp.group.rotation.y = rp.targetYaw;
+          }
+          rp.group.remove(rp.label);
+          rp.label = makeNameSprite(rp.name);
+          rp.group.add(rp.label);
+          updateScoreboard();
+
+          if (Array.isArray(msg.peers)) {
+            for (const otherId of msg.peers) {
+              if (otherId !== peer.id && !connections.has(otherId)) {
+                setupConnection(peer.connect(otherId, { reliable: true }));
+              }
+            }
+          }
+        } else if (msg.type === 'meta') {
+          const rp = createRemotePlayer(conn.peer, msg.name);
+          if (rp.name !== msg.name) {
+            rp.name = msg.name;
+            rp.group.remove(rp.label);
+            rp.label = makeNameSprite(rp.name);
+            rp.group.add(rp.label);
+          }
+          rp.kills = msg.kills;
+          rp.deaths = msg.deaths;
+          updateScoreboard();
+        } else if (msg.type === 'state') {
+          const rp = createRemotePlayer(conn.peer);
+          rp.targetPos.set(msg.x, msg.y - 1.7, msg.z);
+          rp.targetYaw = msg.yaw;
+          rp.group.visible = msg.alive;
+        } else if (msg.type === 'shoot') {
+          spawnTracer(
+            new THREE.Vector3(msg.ox, msg.oy, msg.oz),
+            new THREE.Vector3(msg.ex, msg.ey, msg.ez),
+            0xff4655
+          );
+        } else if (msg.type === 'hit') {
+          if (player.hp <= 0) return;
+          player.hp = Math.max(0, player.hp - msg.dmg);
+          hpEl.textContent = player.hp;
+          damageFlashEl.style.opacity = '1';
+          setTimeout(() => { damageFlashEl.style.opacity = '0'; }, 160);
+          playTone(110, 'sawtooth', 0.14, 0.25);
+
+          if (player.hp <= 0) {
+            player.deaths++;
+            deathsEl.textContent = player.deaths;
+            updateScoreboard();
+            broadcast({ type: 'meta', name: player.name, kills: player.kills, deaths: player.deaths });
+            sendTo(conn.peer, { type: 'kill_credit', victim: player.name, headshot: msg.headshot });
+            addKillfeed(`${msg.attacker} eliminated ${player.name}${msg.headshot ? ' [HS]' : ''}`);
+            respawnLocalPlayer();
+          }
+        } else if (msg.type === 'kill_credit') {
+          player.kills++;
+          killsEl.textContent = player.kills;
+          updateScoreboard();
+          broadcast({ type: 'meta', name: player.name, kills: player.kills, deaths: player.deaths });
+          addKillfeed(`${player.name} eliminated ${msg.victim}${msg.headshot ? ' [HS]' : ''}`);
+        }
+      });
+
+      conn.on('error', (err) => {
+        statusText.textContent = `Conn error: ${err.type || err}`;
+        resetButtons();
+      });
+
+      conn.on('close', () => {
+        connections.delete(conn.peer);
+        removeRemotePlayer(conn.peer);
+        statusText.textContent = `Peer left (${connections.size} online).`;
+        if (connections.size === 0 && !isHost) resetButtons();
+      });
+    }
+
+    function initPeer(customId = null) {
+      if (typeof window.Peer === 'undefined') {
+        statusText.textContent = 'Error: PeerJS failed to load. Check internet/adblocker.';
+        resetButtons();
+        return false;
+      }
+      if (peer) {
+        try { peer.destroy(); } catch (_) {}
+      }
+      const opts = {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      };
+      peer = customId ? new window.Peer(customId, opts) : new window.Peer(opts);
+      peer.on('connection', (conn) => setupConnection(conn));
+      peer.on('error', (err) => {
+        statusText.textContent = `Network error: ${err.type} (check room code & host tab)`;
+        resetButtons();
+      });
+      return true;
+    }
+
+    setInterval(() => {
+      if (connections.size > 0) {
+        broadcast({
+          type: 'state',
+          x: player.pos.x,
+          y: player.pos.y,
+          z: player.pos.z,
+          yaw: player.yaw,
+          alive: player.hp > 0
+        });
+      }
+    }, 50);
+
+    function hostRoom(code = randomCode()) {
+      isHost = true;
+      currentRoomCode = code;
+      hostBtn.disabled = true;
+      joinBtn.disabled = true;
+      statusText.textContent = 'Connecting to signaling server...';
+      if (!initPeer(ROOM_PREFIX + code)) return;
+
+      peer.on('open', () => {
+        roomCodeDisplay.textContent = code;
+        roomBanner.style.display = 'flex';
+        statusText.textContent = `Room ${code} live. Share code/link or click PLAY.`;
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', code);
+        window.history.replaceState({}, '', url);
+      });
+    }
+
+    function joinRoom(raw) {
+      const clean = parseRoomCode(raw);
+      if (!clean) {
+        statusText.textContent = 'Enter a valid room code first.';
+        return;
+      }
+      joinInput.value = clean;
+      isHost = false;
+      currentRoomCode = clean;
+      hostBtn.disabled = true;
+      joinBtn.disabled = true;
+      statusText.textContent = `Connecting to signaling server to join ${clean}...`;
+      if (!initPeer()) return;
+
+      joinTimeout = setTimeout(() => {
+        if (connections.size === 0) {
+          statusText.textContent = `Timed out joining ${clean}. Make sure Host tab is open and try again.`;
+          resetButtons();
+        }
+      }, 8000);
+
+      peer.on('open', () => {
+        statusText.textContent = `Dialing host ${clean}...`;
+        const conn = peer.connect(ROOM_PREFIX + clean, { reliable: true });
+        setupConnection(conn);
+        roomCodeDisplay.textContent = clean;
+        roomBanner.style.display = 'flex';
+      });
+    }
+
+    hostBtn.addEventListener('click', () => hostRoom());
+    joinBtn.addEventListener('click', () => joinRoom(joinInput.value));
+    joinInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') joinRoom(joinInput.value);
+    });
+    copyLinkBtn.addEventListener('click', () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', currentRoomCode);
+      navigator.clipboard.writeText(url.toString());
+      copyLinkBtn.textContent = 'COPIED!';
+      setTimeout(() => { copyLinkBtn.textContent = 'COPY INVITE'; }, 1500);
+    });
+
+    const urlRoom = new URLSearchParams(window.location.search).get('room');
+    if (urlRoom) {
+      joinInput.value = urlRoom.toUpperCase();
+      joinRoom(urlRoom);
+    }
+
+    function respawnLocalPlayer() {
+      setScoped(false);
+      const spawn = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
+      player.pos.copy(spawn);
+      player.vel.set(0, 0, 0);
+      player.hp = 100;
+      player.ammo = player.maxAmmo;
+      hpEl.textContent = '100';
+      ammoEl.textContent = player.ammo;
+    }
+
+    const keys = {};
+    let isLocked = false;
+    let firing = false;
+
+    function setScoped(active) {
+      player.scoped = active;
+      scopeOverlayEl.classList.toggle('active', active);
+      crosshairEl.style.opacity = active ? '0' : '1';
+      weaponGroup.visible = !active;
+    }
+
+    deployBtn.addEventListener('click', () => document.body.requestPointerLock());
+    document.addEventListener('pointerlockchange', () => {
+      isLocked = document.pointerLockElement === document.body;
+      overlay.style.display = isLocked ? 'none' : 'flex';
+      if (!isLocked) {
+        firing = false;
+        setScoped(false);
+      }
+    });
+
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isLocked) return;
+      const zoomScale = player.scoped ? (SCOPE_FOV / BASE_FOV) * 0.75 : 1;
+      const sens = 0.0022 * zoomScale;
+      player.yaw -= e.movementX * sens;
+      player.pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, player.pitch - e.movementY * sens));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'KeyR' && isLocked && !player.reloading && player.ammo < player.maxAmmo) reload();
+    });
+    document.addEventListener('keyup', (e) => keys[e.code] = false);
+    document.addEventListener('mousedown', (e) => {
+      if (!isLocked) return;
+      if (e.button === 0) firing = true;
+      if (e.button === 2 && !player.reloading) setScoped(true);
+    });
+    document.addEventListener('mouseup', (e) => {
+      if (e.button === 0) firing = false;
+      if (e.button === 2) setScoped(false);
+    });
+
+    function reload() {
+      setScoped(false);
+      player.reloading = true;
+      ammoEl.textContent = 'RLD';
+      playTone(220, 'triangle', 0.25, 0.1);
+      setTimeout(() => {
+        player.ammo = player.maxAmmo;
+        player.reloading = false;
+        ammoEl.textContent = player.ammo;
+      }, 1100);
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const tracers = [];
+
+    function spawnTracer(start, end, colorHex = 0xffe066) {
+      const geo = new THREE.BufferGeometry().setFromPoints([start, end]);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: colorHex }));
+      scene.add(line);
+      tracers.push({ line, life: 0.065 });
+    }
+
+    function shoot() {
+      if (player.reloading || player.fireCooldown > 0) return;
+      if (player.ammo <= 0) { reload(); return; }
+
+      player.ammo--;
+      ammoEl.textContent = player.ammo;
+      player.fireCooldown = 0.11;
+
+      const recoilScale = player.scoped ? 0.55 : 1;
+      player.recoilPitch += 0.024 * recoilScale;
+      player.recoilYaw += (Math.random() - 0.5) * 0.014 * recoilScale;
+      weaponGroup.position.z += 0.06;
+      muzzleFlash.visible = true;
+      setTimeout(() => { muzzleFlash.visible = false; }, 35);
+      playTone(150, 'sawtooth', 0.09, 0.18);
+
+      const spread = player.recoilPitch * (player.scoped ? 0.08 : 0.35);
+      const dir = new THREE.Vector3(
+        (Math.random() - 0.5) * spread,
+        (Math.random() - 0.5) * spread,
+        -1
+      ).normalize().applyEuler(camera.rotation);
+
+      raycaster.set(camera.position, dir);
+      const hits = raycaster.intersectObjects(shootableMeshes, false);
+      let endPoint = camera.position.clone().addScaledVector(dir, 75);
+
+      if (hits.length > 0) {
+        const hit = hits[0];
+        endPoint = hit.point;
+        const data = hit.object.userData;
+
+        if (data.type === 'player') {
+          const dmg = data.isHead ? 100 : 35;
+          showHitmarker(data.isHead);
+          playTone(data.isHead ? 880 : 520, 'sine', 0.07, 0.15);
+          sendTo(data.peerId, {
+            type: 'hit',
+            dmg,
+            headshot: data.isHead,
+            attacker: player.name
+          });
+        } else if (data.type === 'bot' && data.bot.hp > 0) {
+          const dmg = data.isHead ? 100 : 35;
+          data.bot.hp -= dmg;
+          showHitmarker(data.isHead);
+          playTone(data.isHead ? 880 : 520, 'sine', 0.07, 0.15);
+          if (data.bot.hp <= 0) {
+            data.bot.group.visible = false;
+            data.bot.respawnTimer = 2.5;
+          }
+        }
+      }
+
+      const origin = player.scoped
+        ? camera.position.clone().add(new THREE.Vector3(0, -0.05, -0.4).applyEuler(camera.rotation))
+        : weaponGroup.getWorldPosition(new THREE.Vector3());
+
+      spawnTracer(origin, endPoint, 0xffe066);
+      broadcast({
+        type: 'shoot',
+        ox: origin.x, oy: origin.y, oz: origin.z,
+        ex: endPoint.x, ey: endPoint.y, ez: endPoint.z
+      });
+    }
+
+    function showHitmarker(headshot) {
+      hitmarkerEl.style.opacity = '1';
+      hitmarkerEl.style.transform = `translate(-50%, -50%) rotate(45deg) scale(${headshot ? 1.35 : 1})`;
+      setTimeout(() => { hitmarkerEl.style.opacity = '0'; }, 90);
+    }
+
+    function collides(pos) {
+      const playerBox = new THREE.Box3(
+        new THREE.Vector3(pos.x - 0.35, pos.y - 1.65, pos.z - 0.35),
+        new THREE.Vector3(pos.x + 0.35, pos.y + 0.15, pos.z + 0.35)
+      );
+      for (const box of colliders) {
+        if (playerBox.intersectsBox(box)) return true;
+      }
+      return false;
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    let lastTime = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      if (isLocked) {
+        if (firing) shoot();
+        if (player.fireCooldown > 0) player.fireCooldown -= dt;
+
+        const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+        const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+        const moveDir = new THREE.Vector3();
+
+        if (keys['KeyW']) moveDir.add(forward);
+        if (keys['KeyS']) moveDir.sub(forward);
+        if (keys['KeyD']) moveDir.add(right);
+        if (keys['KeyA']) moveDir.sub(right);
+        if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+        const baseSpeed = keys['ShiftLeft'] ? 4.2 : 8.5;
+        const speed = player.scoped ? baseSpeed * 0.65 : baseSpeed;
+        const nextX = player.pos.clone();
+        nextX.x += moveDir.x * speed * dt;
+        if (!collides(nextX)) player.pos.x = nextX.x;
+
+        const nextZ = player.pos.clone();
+        nextZ.z += moveDir.z * speed * dt;
+        if (!collides(nextZ)) player.pos.z = nextZ.z;
+
+        if (keys['Space'] && player.grounded) {
+          player.vel.y = 7.2;
+          player.grounded = false;
+        }
+        player.vel.y -= 20 * dt;
+        player.pos.y += player.vel.y * dt;
+        if (player.pos.y <= 1.7) {
+          player.pos.y = 1.7;
+          player.vel.y = 0;
+          player.grounded = true;
+        }
+      }
+
+      const targetFov = player.scoped ? SCOPE_FOV : BASE_FOV;
+      if (Math.abs(camera.fov - targetFov) > 0.05) {
+        camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, dt * 16);
+        camera.updateProjectionMatrix();
+      }
+      weaponGroup.position.lerp(player.scoped ? adsPos : hipPos, dt * 16);
+
+      player.recoilPitch = THREE.MathUtils.lerp(player.recoilPitch, 0, dt * 10);
+      player.recoilYaw = THREE.MathUtils.lerp(player.recoilYaw, 0, dt * 10);
+
+      camera.position.copy(player.pos);
+      camera.rotation.y = player.yaw + player.recoilYaw;
+      camera.rotation.x = player.pitch + player.recoilPitch;
+
+      for (const rp of remotePlayers.values()) {
+        rp.group.position.lerp(rp.targetPos, dt * 15);
+        rp.group.rotation.y = rp.targetYaw;
+      }
+
+      for (const b of targets) {
+        if (b.hp > 0) {
+          b.phase += dt * b.speed;
+          b.group.position.x = b.originX + Math.sin(b.phase) * b.range;
+        } else {
+          b.respawnTimer -= dt;
+          if (b.respawnTimer <= 0) {
+            b.hp = 100;
+            b.group.visible = true;
+          }
+        }
+      }
+
+      for (let i = tracers.length - 1; i >= 0; i--) {
+        tracers[i].life -= dt;
+        if (tracers[i].life <= 0) {
+          scene.remove(tracers[i].line);
+          tracers[i].line.geometry.dispose();
+          tracers[i].line.material.dispose();
+          tracers.splice(i, 1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate(lastTime);
+  </script>
+</body>
+</html>
