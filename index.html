@@ -25,39 +25,44 @@
     }
 
     #overlay {
-      position: fixed; inset: 0; background: rgba(12, 14, 18, 0.92);
+      position: fixed; inset: 0; background: rgba(12, 14, 18, 0.93);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       z-index: 30; gap: 10px; padding: 12px;
     }
     #overlay h1 { font-size: clamp(18px, 3.5vw, 28px); letter-spacing: 4px; color: #ff4655; text-align: center; }
     .lobby-box {
       background: #181c24; border: 1px solid #2c3342; border-left: 4px solid #ff4655;
-      padding: 14px 18px; width: 420px; max-width: 94vw; max-height: 82vh; overflow-y: auto;
-      display: flex; flex-direction: column; gap: 9px;
+      padding: 16px 20px; width: 420px; max-width: 94vw; max-height: 84vh; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
     }
+    .menu-view { display: flex; flex-direction: column; gap: 10px; }
+    .menu-view.hidden { display: none; }
+    .section-label { font-size: 11px; color: #9fa6b2; letter-spacing: 1px; }
+    .divider { height: 1px; background: #262c38; margin: 2px 0; }
     .row { display: flex; gap: 8px; }
     input {
       flex: 1; min-width: 0; background: #0f1115; border: 1px solid #353b4a; color: #ece8e1;
-      padding: 8px 10px; font-family: monospace; font-size: 13px; outline: none;
+      padding: 9px 10px; font-family: monospace; font-size: 13px; outline: none;
       user-select: text; -webkit-user-select: text;
     }
     input:focus { border-color: #ff4655; }
     button {
-      background: #ff4655; color: #fff; border: none; padding: 8px 12px;
+      background: #ff4655; color: #fff; border: none; padding: 9px 14px;
       font-family: monospace; font-weight: bold; font-size: 12px; letter-spacing: 1px;
       cursor: pointer; transition: background 0.15s, border-color 0.15s;
     }
     button:hover { background: #e03846; }
     button.secondary { background: #2a303d; }
     button.secondary:hover { background: #384050; }
+    button.danger { background: #3b1d24; color: #fca5a5; }
+    button.danger:hover { background: #52232d; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* Character Selector */
-    .char-label { font-size: 11px; color: #9fa6b2; letter-spacing: 1px; }
     .char-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .char-btn {
       background: #11141a; border: 2px solid #2c3342; padding: 8px 4px;
-      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
       font-size: 11px; color: #cbd5e1;
     }
     .char-btn:hover { background: #1c222d; }
@@ -66,10 +71,10 @@
 
     #room-banner {
       font-size: 12px; color: #00ffcc; background: rgba(0, 255, 204, 0.08);
-      border: 1px solid rgba(0, 255, 204, 0.3); padding: 6px 10px; display: none;
-      justify-content: space-between; align-items: center; gap: 8px;
+      border: 1px solid rgba(0, 255, 204, 0.3); padding: 8px 10px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
     }
-    #status-text { font-size: 11px; color: #9fa6b2; min-height: 14px; word-break: break-word; }
+    #status-text { font-size: 11px; color: #9fa6b2; min-height: 15px; word-break: break-word; }
     .controls-hint { font-size: 11px; color: #7a8291; text-align: center; max-width: 92vw; }
 
     #crosshair {
@@ -202,29 +207,42 @@
   <div id="overlay">
     <h1>TACTICAL ARENA</h1>
     <div class="lobby-box">
-      <input id="name-input" type="text" maxlength="14" placeholder="CALLSIGN (e.g. Viper)" />
 
-      <div class="char-label">SELECT CHARACTER (SKILL: E)</div>
-      <div class="char-grid" id="char-grid">
-        <button class="char-btn" data-char="ice" style="--c:#7dd3fc"><span class="char-swatch"></span>ICE<small style="font-size:9px;opacity:.7">Wall</small></button>
-        <button class="char-btn selected" data-char="fire" style="--c:#f97316"><span class="char-swatch"></span>FIRE<small style="font-size:9px;opacity:.7">Fireball</small></button>
-        <button class="char-btn" data-char="water" style="--c:#38bdf8"><span class="char-swatch"></span>WATER<small style="font-size:9px;opacity:.7">Blind</small></button>
-        <button class="char-btn" data-char="smoke" style="--c:#94a3b8"><span class="char-swatch"></span>SMOKE<small style="font-size:9px;opacity:.7">Cloud</small></button>
+      <!-- STAGE 1: HOST / JOIN / SOLO -->
+      <div id="view-connect" class="menu-view">
+        <div class="section-label">CALLSIGN</div>
+        <input id="name-input" type="text" maxlength="14" placeholder="Enter callsign" />
+        <div class="divider"></div>
+        <div class="section-label">MULTIPLAYER ROOM</div>
+        <button id="host-btn">HOST NEW ROOM</button>
+        <div class="row">
+          <input id="join-input" type="text" placeholder="ROOM CODE OR INVITE URL" />
+          <button id="join-btn" class="secondary">JOIN</button>
+        </div>
+        <div class="divider"></div>
+        <button id="solo-btn" class="secondary">SOLO PRACTICE RANGE</button>
       </div>
 
-      <div class="row">
-        <button id="host-btn" style="flex:1">HOST ROOM</button>
-        <button id="deploy-btn" class="secondary" style="flex:1">PLAY / RESUME</button>
+      <!-- STAGE 2: IN-ROOM LOADOUT & PLAY -->
+      <div id="view-loadout" class="menu-view hidden">
+        <div id="room-banner">
+          <span id="room-role-text">ROOM: <strong id="room-code-display"></strong></span>
+          <button id="copy-link-btn" class="secondary" style="padding:4px 8px;font-size:11px">COPY INVITE</button>
+        </div>
+
+        <div class="section-label">SELECT CHARACTER (SKILL: E)</div>
+        <div class="char-grid" id="char-grid">
+          <button class="char-btn" data-char="ice" style="--c:#7dd3fc"><span class="char-swatch"></span>ICE<small style="font-size:9px;opacity:.7">Wall</small></button>
+          <button class="char-btn selected" data-char="fire" style="--c:#f97316"><span class="char-swatch"></span>FIRE<small style="font-size:9px;opacity:.7">Fireball</small></button>
+          <button class="char-btn" data-char="water" style="--c:#38bdf8"><span class="char-swatch"></span>WATER<small style="font-size:9px;opacity:.7">Blind</small></button>
+          <button class="char-btn" data-char="smoke" style="--c:#94a3b8"><span class="char-swatch"></span>SMOKE<small style="font-size:9px;opacity:.7">Cloud</small></button>
+        </div>
+
+        <button id="deploy-btn">PLAY / RESUME</button>
+        <button id="leave-btn" class="danger">LEAVE ROOM</button>
       </div>
-      <div class="row">
-        <input id="join-input" type="text" placeholder="ROOM CODE OR INVITE URL" />
-        <button id="join-btn" class="secondary">JOIN</button>
-      </div>
-      <div id="room-banner">
-        <span>ROOM: <strong id="room-code-display"></strong></span>
-        <button id="copy-link-btn" class="secondary" style="padding:4px 8px;font-size:11px">COPY INVITE</button>
-      </div>
-      <div id="status-text">Play solo on range or Host/Join a P2P room.</div>
+
+      <div id="status-text">Choose Host, Join, or Solo to begin.</div>
     </div>
     <p class="controls-hint" id="controls-hint">PC: WASD Move | SHIFT Walk | SPACE Jump | LMB Fire | RMB Scope | E Skill | R Reload | ESC Menu</p>
   </div>
@@ -588,17 +606,22 @@
     };
     camera.position.copy(player.pos);
 
+    // UI Elements
     const overlay = document.getElementById('overlay');
+    const viewConnect = document.getElementById('view-connect');
+    const viewLoadout = document.getElementById('view-loadout');
     const nameInput = document.getElementById('name-input');
     const charGrid = document.getElementById('char-grid');
     const charBadge = document.getElementById('char-badge');
     const skillStatusEl = document.getElementById('skill-status');
     const hostBtn = document.getElementById('host-btn');
     const joinBtn = document.getElementById('join-btn');
+    const soloBtn = document.getElementById('solo-btn');
     const deployBtn = document.getElementById('deploy-btn');
+    const leaveBtn = document.getElementById('leave-btn');
     const joinInput = document.getElementById('join-input');
     const roomBanner = document.getElementById('room-banner');
-    const roomCodeDisplay = document.getElementById('room-code-display');
+    const roomRoleText = document.getElementById('room-role-text');
     const copyLinkBtn = document.getElementById('copy-link-btn');
     const statusText = document.getElementById('status-text');
     const crosshairEl = document.getElementById('crosshair');
@@ -614,6 +637,39 @@
     const blindOverlayEl = document.getElementById('blind-overlay');
     const mobileControlsEl = document.getElementById('mobile-controls');
     const btnSkill = document.getElementById('btn-skill');
+
+    // Stage Switching
+    let inSession = false;
+
+    function showConnectView() {
+      inSession = false;
+      viewConnect.classList.remove('hidden');
+      viewLoadout.classList.add('hidden');
+      setConnectButtonsDisabled(false);
+    }
+
+    function showLoadoutView(mode, code = '') {
+      inSession = true;
+      viewConnect.classList.add('hidden');
+      viewLoadout.classList.remove('hidden');
+
+      if (mode === 'solo') {
+        roomRoleText.innerHTML = 'MODE: <strong>SOLO RANGE</strong>';
+        copyLinkBtn.style.display = 'none';
+      } else if (mode === 'host') {
+        roomRoleText.innerHTML = `HOSTING ROOM: <strong>${code}</strong>`;
+        copyLinkBtn.style.display = 'inline-block';
+      } else {
+        roomRoleText.innerHTML = `JOINED ROOM: <strong>${code}</strong>`;
+        copyLinkBtn.style.display = 'inline-block';
+      }
+    }
+
+    function setConnectButtonsDisabled(disabled) {
+      hostBtn.disabled = disabled;
+      joinBtn.disabled = disabled;
+      soloBtn.disabled = disabled;
+    }
 
     function selectCharacter(key) {
       if (!CHARACTERS[key]) return;
@@ -658,7 +714,6 @@
     nameInput.value = player.name;
     nameInput.addEventListener('input', () => {
       player.name = nameInput.value.trim() || 'Agent';
-      broadcast({ type: 'meta', name: player.name, char: player.char, kills: player.kills, deaths: player.deaths });
       updateScoreboard();
     });
 
@@ -858,9 +913,7 @@
       return trimmed.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     }
 
-    function resetButtons() {
-      if (hostBtn) hostBtn.disabled = false;
-      joinBtn.disabled = false;
+    function clearNetTimeout() {
       if (netTimeout) { clearTimeout(netTimeout); netTimeout = null; }
     }
 
@@ -877,7 +930,7 @@
 
     function setupConnection(conn) {
       conn.on('open', () => {
-        if (netTimeout) { clearTimeout(netTimeout); netTimeout = null; }
+        clearNetTimeout();
         connections.set(conn.peer, conn);
         createRemotePlayer(conn.peer, 'Connecting...', 'fire');
         conn.send({
@@ -892,7 +945,10 @@
           yaw: player.yaw,
           peers: isHost ? Array.from(connections.keys()).filter(id => id !== conn.peer) : []
         });
-        statusText.textContent = `Connected (${connections.size} peer${connections.size === 1 ? '' : 's'} online). Tap PLAY.`;
+        if (!inSession) {
+          showLoadoutView('join', currentRoomCode);
+        }
+        statusText.textContent = `Connected (${connections.size} peer${connections.size === 1 ? '' : 's'} online). Pick character & press PLAY.`;
       });
 
       conn.on('data', (msg) => {
@@ -981,22 +1037,21 @@
       });
 
       conn.on('error', (err) => {
-        statusText.textContent = `Conn error: ${err.type || err}`;
-        resetButtons();
+        statusText.textContent = `Connection error: ${err.type || err}`;
+        if (!inSession) setConnectButtonsDisabled(false);
       });
 
       conn.on('close', () => {
         connections.delete(conn.peer);
         removeRemotePlayer(conn.peer);
         statusText.textContent = `Peer left (${connections.size} online).`;
-        if (connections.size === 0 && !isHost) resetButtons();
       });
     }
 
     function initPeer(customId = null) {
       if (typeof window.Peer === 'undefined') {
         statusText.textContent = 'Error: PeerJS failed to load. Check internet/adblocker.';
-        resetButtons();
+        setConnectButtonsDisabled(false);
         return false;
       }
       if (peer) {
@@ -1013,8 +1068,9 @@
       peer = customId ? new window.Peer(customId, opts) : new window.Peer(opts);
       peer.on('connection', (conn) => setupConnection(conn));
       peer.on('error', (err) => {
-        statusText.textContent = `Network error: ${err.type} (check room code & host tab)`;
-        resetButtons();
+        clearNetTimeout();
+        statusText.textContent = `Network error: ${err.type} (check room code or network)`;
+        if (!inSession) setConnectButtonsDisabled(false);
       });
       return true;
     }
@@ -1033,25 +1089,24 @@
     }, 50);
 
     function hostRoom(code = randomCode()) {
+      if (inSession) return;
       isHost = true;
       currentRoomCode = code;
-      hostBtn.disabled = true;
-      joinBtn.disabled = true;
+      setConnectButtonsDisabled(true);
       statusText.textContent = 'Connecting to signaling server...';
       if (!initPeer(ROOM_PREFIX + code)) return;
 
       netTimeout = setTimeout(() => {
-        statusText.textContent = 'Timed out connecting to signaling server. Try again.';
-        resetButtons();
+        if (!inSession) {
+          statusText.textContent = 'Timed out connecting to signaling server. Try again.';
+          setConnectButtonsDisabled(false);
+        }
       }, 8000);
 
       peer.on('open', () => {
-        if (netTimeout) { clearTimeout(netTimeout); netTimeout = null; }
-        hostBtn.remove();
-        deployBtn.classList.remove('secondary');
-        roomCodeDisplay.textContent = code;
-        roomBanner.style.display = 'flex';
-        statusText.textContent = `You hosted! Code: ${code} — press PLAY / RESUME to play.`;
+        clearNetTimeout();
+        showLoadoutView('host', code);
+        statusText.textContent = `You hosted! Code: ${code} — choose character and press PLAY / RESUME.`;
         const url = new URL(window.location.href);
         url.searchParams.set('room', code);
         window.history.replaceState({}, '', url);
@@ -1059,6 +1114,7 @@
     }
 
     function joinRoom(raw) {
+      if (inSession) return;
       const clean = parseRoomCode(raw);
       if (!clean) {
         statusText.textContent = 'Enter a valid room code first.';
@@ -1067,15 +1123,14 @@
       joinInput.value = clean;
       isHost = false;
       currentRoomCode = clean;
-      if (hostBtn) hostBtn.disabled = true;
-      joinBtn.disabled = true;
+      setConnectButtonsDisabled(true);
       statusText.textContent = `Connecting to signaling server to join ${clean}...`;
       if (!initPeer()) return;
 
       netTimeout = setTimeout(() => {
-        if (connections.size === 0) {
+        if (connections.size === 0 && !inSession) {
           statusText.textContent = `Timed out joining ${clean}. Make sure Host is open and try again.`;
-          resetButtons();
+          setConnectButtonsDisabled(false);
         }
       }, 8000);
 
@@ -1083,13 +1138,43 @@
         statusText.textContent = `Dialing host ${clean}...`;
         const conn = peer.connect(ROOM_PREFIX + clean, { reliable: true });
         setupConnection(conn);
-        roomCodeDisplay.textContent = clean;
-        roomBanner.style.display = 'flex';
       });
+    }
+
+    function startSolo() {
+      if (inSession) return;
+      isHost = false;
+      currentRoomCode = '';
+      showLoadoutView('solo');
+      statusText.textContent = 'Solo range ready. Choose character and press PLAY / RESUME.';
+    }
+
+    function leaveRoom() {
+      clearNetTimeout();
+      for (const conn of connections.values()) {
+        try { conn.close(); } catch (_) {}
+      }
+      connections.clear();
+      for (const id of Array.from(remotePlayers.keys())) {
+        removeRemotePlayer(id);
+      }
+      if (peer) {
+        try { peer.destroy(); } catch (_) {}
+        peer = null;
+      }
+      isHost = false;
+      currentRoomCode = '';
+      const url = new URL(window.location.href);
+      url.searchParams.delete('room');
+      window.history.replaceState({}, '', url);
+      showConnectView();
+      statusText.textContent = 'Left room. Host, Join, or start Solo.';
     }
 
     hostBtn.addEventListener('click', () => hostRoom());
     joinBtn.addEventListener('click', () => joinRoom(joinInput.value));
+    soloBtn.addEventListener('click', () => startSolo());
+    leaveBtn.addEventListener('click', () => leaveRoom());
     joinInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') joinRoom(joinInput.value);
     });
@@ -1143,6 +1228,7 @@
     }
 
     function enterGame() {
+      if (!inSession) return;
       if (audioCtx.state === 'suspended') audioCtx.resume();
       if (!isTouchDevice && document.body.requestPointerLock) {
         document.body.requestPointerLock();
@@ -1453,7 +1539,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Initialize default character & auto-join if ?room= is in URL
+    // Initialize defaults & auto-join if ?room= is in URL
     selectCharacter('fire');
     const urlRoom = new URLSearchParams(window.location.search).get('room');
     if (urlRoom) {
