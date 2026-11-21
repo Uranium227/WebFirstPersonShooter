@@ -2,31 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Tactical FPS — Multiplayer</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-    body { overflow: hidden; background: #0f1115; font-family: monospace; color: #ece8e1; }
-    canvas { display: block; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body {
+      overflow: hidden; background: #0f1115; font-family: monospace; color: #ece8e1;
+      width: 100%; height: 100%; touch-action: none; overscroll-behavior: none;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
 
     #overlay {
       position: fixed; inset: 0; background: rgba(12, 14, 18, 0.92);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      z-index: 20; gap: 16px;
+      z-index: 30; gap: 14px; padding: 16px;
     }
-    #overlay h1 { font-size: 30px; letter-spacing: 5px; color: #ff4655; }
+    #overlay h1 { font-size: clamp(22px, 5vw, 30px); letter-spacing: 4px; color: #ff4655; text-align: center; }
     .lobby-box {
       background: #181c24; border: 1px solid #2c3342; border-left: 4px solid #ff4655;
-      padding: 20px 24px; width: 400px; display: flex; flex-direction: column; gap: 12px;
+      padding: 18px 20px; width: 400px; max-width: 94vw; display: flex; flex-direction: column; gap: 10px;
     }
     .row { display: flex; gap: 8px; }
     input {
-      flex: 1; background: #0f1115; border: 1px solid #353b4a; color: #ece8e1;
+      flex: 1; min-width: 0; background: #0f1115; border: 1px solid #353b4a; color: #ece8e1;
       padding: 10px 12px; font-family: monospace; font-size: 14px; outline: none;
-      user-select: text;
+      user-select: text; -webkit-user-select: text;
     }
     input:focus { border-color: #ff4655; }
     button {
-      background: #ff4655; color: #fff; border: none; padding: 10px 16px;
+      background: #ff4655; color: #fff; border: none; padding: 10px 14px;
       font-family: monospace; font-weight: bold; font-size: 13px; letter-spacing: 1px;
       cursor: pointer; transition: background 0.15s;
     }
@@ -37,10 +41,10 @@
     #room-banner {
       font-size: 13px; color: #00ffcc; background: rgba(0, 255, 204, 0.08);
       border: 1px solid rgba(0, 255, 204, 0.3); padding: 8px 10px; display: none;
-      justify-content: space-between; align-items: center;
+      justify-content: space-between; align-items: center; gap: 8px;
     }
     #status-text { font-size: 12px; color: #9fa6b2; min-height: 16px; word-break: break-word; }
-    .controls-hint { font-size: 12px; color: #7a8291; text-align: center; }
+    .controls-hint { font-size: 11px; color: #7a8291; text-align: center; max-width: 92vw; }
 
     #crosshair {
       position: fixed; top: 50%; left: 50%; width: 16px; height: 16px;
@@ -54,12 +58,12 @@
     #scope-overlay {
       position: fixed; inset: 0; pointer-events: none; z-index: 6;
       opacity: 0; transition: opacity 0.12s ease-out;
-      background: radial-gradient(circle at center, transparent 170px, rgba(8, 10, 14, 0.72) 240px, rgba(5, 6, 9, 0.96) 65%);
+      background: radial-gradient(circle at center, transparent 140px, rgba(8, 10, 14, 0.72) 210px, rgba(5, 6, 9, 0.96) 65%);
     }
     #scope-overlay.active { opacity: 1; }
     #scope-ring {
-      position: fixed; top: 50%; left: 50%; width: 340px; height: 340px;
-      margin-left: -170px; margin-top: -170px; border-radius: 50%;
+      position: fixed; top: 50%; left: 50%; width: min(340px, 70vmin); height: min(340px, 70vmin);
+      transform: translate(-50%, -50%); border-radius: 50%;
       border: 2px solid rgba(236, 232, 225, 0.55);
       box-shadow: 0 0 0 1px rgba(255, 70, 85, 0.35), inset 0 0 24px rgba(0, 0, 0, 0.65);
     }
@@ -73,28 +77,28 @@
     }
 
     #hud {
-      position: fixed; bottom: 24px; left: 28px; right: 28px;
-      display: flex; justify-content: space-between; font-size: 18px;
-      pointer-events: none; z-index: 5;
+      position: fixed; bottom: 18px; left: 20px; right: 20px;
+      display: flex; justify-content: space-between; font-size: clamp(13px, 2.5vw, 18px);
+      pointer-events: none; z-index: 8; gap: 8px;
     }
     .panel {
       background: rgba(15, 17, 21, 0.75); border-left: 3px solid #ff4655;
-      padding: 10px 16px;
+      padding: 8px 12px;
     }
     #top-bar {
-      position: fixed; top: 18px; left: 28px; right: 28px;
+      position: fixed; top: 14px; left: 16px; right: 16px;
       display: flex; justify-content: space-between; align-items: flex-start;
-      pointer-events: none; z-index: 5; font-size: 13px;
+      pointer-events: none; z-index: 8; font-size: 12px;
     }
     #scoreboard {
       background: rgba(15, 17, 21, 0.75); border-left: 3px solid #00ffcc;
-      padding: 8px 14px; min-width: 190px;
+      padding: 6px 10px; min-width: 150px;
     }
-    #scoreboard div { margin: 3px 0; }
+    #scoreboard div { margin: 2px 0; }
     #killfeed { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
     .kill-msg {
       background: rgba(15, 17, 21, 0.8); border-right: 3px solid #ff4655;
-      padding: 5px 10px; font-size: 12px;
+      padding: 4px 8px; font-size: 11px;
     }
     #hitmarker {
       position: fixed; top: 50%; left: 50%; width: 24px; height: 24px;
@@ -108,6 +112,47 @@
       position: fixed; inset: 0; pointer-events: none; z-index: 4;
       background: radial-gradient(circle, transparent 50%, rgba(255, 40, 55, 0.45) 100%);
       opacity: 0; transition: opacity 0.15s;
+    }
+
+    /* Mobile Touch Controls */
+    #mobile-controls {
+      position: fixed; inset: 0; z-index: 15; display: none; pointer-events: none;
+    }
+    #mobile-controls.visible { display: block; }
+    #look-zone {
+      position: fixed; top: 0; right: 0; width: 60%; height: 100%;
+      pointer-events: auto;
+    }
+    #joy-zone {
+      position: fixed; bottom: 72px; left: 22px; width: 132px; height: 132px;
+      border-radius: 50%; background: rgba(255, 255, 255, 0.07);
+      border: 2px solid rgba(236, 232, 225, 0.25); pointer-events: auto;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #joy-knob {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: rgba(255, 70, 85, 0.75); border: 2px solid #ece8e1;
+      transform: translate(0px, 0px); pointer-events: none;
+    }
+    .m-btn {
+      position: fixed; pointer-events: auto; border-radius: 50%;
+      background: rgba(15, 17, 21, 0.72); border: 2px solid rgba(236, 232, 225, 0.45);
+      color: #ece8e1; font-family: monospace; font-weight: bold; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .m-btn:active, .m-btn.active { background: rgba(255, 70, 85, 0.85); border-color: #fff; }
+    #btn-fire { bottom: 84px; right: 24px; width: 76px; height: 76px; background: rgba(255, 70, 85, 0.72); font-size: 14px; }
+    #btn-scope { bottom: 174px; right: 32px; width: 56px; height: 56px; }
+    #btn-jump { bottom: 84px; right: 114px; width: 56px; height: 56px; }
+    #btn-reload { bottom: 152px; right: 104px; width: 50px; height: 50px; font-size: 11px; }
+    #btn-menu {
+      top: 14px; left: 50%; transform: translateX(-50%);
+      width: auto; height: 32px; padding: 0 14px; border-radius: 4px; font-size: 11px;
+    }
+
+    @media (max-width: 768px) {
+      #hud { bottom: 10px; left: 10px; right: 10px; }
+      .panel { padding: 5px 8px; }
     }
   </style>
 </head>
@@ -130,7 +175,7 @@
       </div>
       <div id="status-text">Play solo on range or Host/Join a P2P room.</div>
     </div>
-    <p class="controls-hint">WASD: Move | SHIFT: Walk | SPACE: Jump | LMB: Fire | RMB: Scope | R: Reload | ESC: Menu</p>
+    <p class="controls-hint" id="controls-hint">PC: WASD Move | SHIFT Walk | SPACE Jump | LMB Fire | RMB Scope | R Reload | ESC Menu</p>
   </div>
 
   <div id="damage-flash"></div>
@@ -150,11 +195,21 @@
 
   <div id="hud">
     <div class="panel">HP <span id="hp">100</span></div>
-    <div class="panel">KILLS <span id="kills">0</span> | DEATHS <span id="deaths">0</span></div>
-    <div class="panel">AMMO <span id="ammo">25</span> / 25</div>
+    <div class="panel">K <span id="kills">0</span> | D <span id="deaths">0</span></div>
+    <div class="panel">AMMO <span id="ammo">25</span>/25</div>
   </div>
 
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <div id="mobile-controls">
+    <div id="look-zone"></div>
+    <div id="joy-zone"><div id="joy-knob"></div></div>
+    <div id="btn-fire" class="m-btn">FIRE</div>
+    <div id="btn-scope" class="m-btn">ADS</div>
+    <div id="btn-jump" class="m-btn">JUMP</div>
+    <div id="btn-reload" class="m-btn">RLD</div>
+    <div id="btn-menu" class="m-btn">MENU</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script type="importmap">
     {
       "imports": {
@@ -165,6 +220,11 @@
 
   <script type="module">
     import * as THREE from 'three';
+
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
+      document.getElementById('controls-hint').textContent = 'MOBILE: Left Stick Move | Drag Right Side Aim | Tap Buttons to Fire/ADS/Jump/Reload';
+    }
 
     const BASE_FOV = 75;
     const SCOPE_FOV = 32;
@@ -184,16 +244,19 @@
     const camera = new THREE.PerspectiveCamera(BASE_FOV, window.innerWidth / window.innerHeight, 0.1, 200);
     camera.rotation.order = 'YXZ';
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: !isTouchDevice });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouchDevice ? 1.5 : 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !isTouchDevice;
     document.body.appendChild(renderer.domElement);
 
     scene.add(new THREE.HemisphereLight(0xddeeff, 0x222630, 0.95));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
     dirLight.position.set(20, 35, 15);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(2048, 2048);
+    if (!isTouchDevice) {
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.set(2048, 2048);
+    }
     scene.add(dirLight);
 
     const colliders = [];
@@ -423,6 +486,7 @@
     const killfeedEl = document.getElementById('killfeed');
     const hitmarkerEl = document.getElementById('hitmarker');
     const damageFlashEl = document.getElementById('damage-flash');
+    const mobileControlsEl = document.getElementById('mobile-controls');
 
     nameInput.value = player.name;
     nameInput.addEventListener('input', () => {
@@ -446,7 +510,7 @@
       }
       rows.sort((a, b) => b.kills - a.kills);
       scoreListEl.innerHTML = rows
-        .map(r => `<div>${r.name}: <strong>${r.kills}K</strong> / ${r.deaths}D</div>`)
+        .map(r => `<div>${r.name}: <strong>${r.kills}K</strong>/${r.deaths}D</div>`)
         .join('');
     }
     updateScoreboard();
@@ -486,9 +550,7 @@
 
     function broadcast(data, excludeId = null) {
       for (const [id, conn] of connections.entries()) {
-        if (id !== excludeId && conn.open) {
-          conn.send(data);
-        }
+        if (id !== excludeId && conn.open) conn.send(data);
       }
     }
 
@@ -513,7 +575,7 @@
           yaw: player.yaw,
           peers: isHost ? Array.from(connections.keys()).filter(id => id !== conn.peer) : []
         });
-        statusText.textContent = `Connected (${connections.size} peer${connections.size === 1 ? '' : 's'} online). Click PLAY.`;
+        statusText.textContent = `Connected (${connections.size} peer${connections.size === 1 ? '' : 's'} online). Tap PLAY.`;
       });
 
       conn.on('data', (msg) => {
@@ -653,7 +715,7 @@
       peer.on('open', () => {
         roomCodeDisplay.textContent = code;
         roomBanner.style.display = 'flex';
-        statusText.textContent = `Room ${code} live. Share code/link or click PLAY.`;
+        statusText.textContent = `Room ${code} live. Share code/link or tap PLAY.`;
         const url = new URL(window.location.href);
         url.searchParams.set('room', code);
         window.history.replaceState({}, '', url);
@@ -676,7 +738,7 @@
 
       joinTimeout = setTimeout(() => {
         if (connections.size === 0) {
-          statusText.textContent = `Timed out joining ${clean}. Make sure Host tab is open and try again.`;
+          statusText.textContent = `Timed out joining ${clean}. Make sure Host is open and try again.`;
           resetButtons();
         }
       }, 8000);
@@ -720,22 +782,52 @@
       ammoEl.textContent = player.ammo;
     }
 
+    // ==========================================
+    // INPUT: PC (Pointer Lock) + MOBILE (Touch)
+    // ==========================================
     const keys = {};
-    let isLocked = false;
+    let isPlaying = false;
     let firing = false;
+    let joyX = 0;
+    let joyY = 0;
 
+    const btnScope = document.getElementById('btn-scope');
     function setScoped(active) {
       player.scoped = active;
       scopeOverlayEl.classList.toggle('active', active);
       crosshairEl.style.opacity = active ? '0' : '1';
       weaponGroup.visible = !active;
+      btnScope.classList.toggle('active', active);
     }
 
-    deployBtn.addEventListener('click', () => document.body.requestPointerLock());
+    function enterGame() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (!isTouchDevice && document.body.requestPointerLock) {
+        document.body.requestPointerLock();
+      } else {
+        isPlaying = true;
+        overlay.style.display = 'none';
+        mobileControlsEl.classList.add('visible');
+      }
+    }
+
+    function exitGameToMenu() {
+      isPlaying = false;
+      firing = false;
+      joyX = 0;
+      joyY = 0;
+      setScoped(false);
+      overlay.style.display = 'flex';
+      mobileControlsEl.classList.remove('visible');
+    }
+
+    deployBtn.addEventListener('click', enterGame);
     document.addEventListener('pointerlockchange', () => {
-      isLocked = document.pointerLockElement === document.body;
-      overlay.style.display = isLocked ? 'none' : 'flex';
-      if (!isLocked) {
+      if (isTouchDevice) return;
+      const locked = document.pointerLockElement === document.body;
+      isPlaying = locked;
+      overlay.style.display = locked ? 'none' : 'flex';
+      if (!locked) {
         firing = false;
         setScoped(false);
       }
@@ -743,8 +835,9 @@
 
     document.addEventListener('contextmenu', (e) => e.preventDefault());
 
+    // PC Mouse & Keyboard
     document.addEventListener('mousemove', (e) => {
-      if (!isLocked) return;
+      if (!isPlaying || isTouchDevice) return;
       const zoomScale = player.scoped ? (SCOPE_FOV / BASE_FOV) * 0.75 : 1;
       const sens = 0.0022 * zoomScale;
       player.yaw -= e.movementX * sens;
@@ -753,18 +846,137 @@
 
     document.addEventListener('keydown', (e) => {
       keys[e.code] = true;
-      if (e.code === 'KeyR' && isLocked && !player.reloading && player.ammo < player.maxAmmo) reload();
+      if (e.code === 'KeyR' && isPlaying && !player.reloading && player.ammo < player.maxAmmo) reload();
     });
     document.addEventListener('keyup', (e) => keys[e.code] = false);
     document.addEventListener('mousedown', (e) => {
-      if (!isLocked) return;
+      if (!isPlaying || isTouchDevice) return;
       if (e.button === 0) firing = true;
       if (e.button === 2 && !player.reloading) setScoped(true);
     });
     document.addEventListener('mouseup', (e) => {
+      if (isTouchDevice) return;
       if (e.button === 0) firing = false;
       if (e.button === 2) setScoped(false);
     });
+
+    // Mobile Virtual Joystick
+    const joyZone = document.getElementById('joy-zone');
+    const joyKnob = document.getElementById('joy-knob');
+    let joyTouchId = null;
+    const JOY_MAX_RADIUS = 44;
+
+    function updateJoystick(touch) {
+      const rect = joyZone.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = touch.clientX - cx;
+      let dy = touch.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist > JOY_MAX_RADIUS) {
+        dx = (dx / dist) * JOY_MAX_RADIUS;
+        dy = (dy / dist) * JOY_MAX_RADIUS;
+      }
+      joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joyX = dx / JOY_MAX_RADIUS;
+      joyY = dy / JOY_MAX_RADIUS;
+    }
+
+    joyZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (joyTouchId !== null) return;
+      const t = e.changedTouches[0];
+      joyTouchId = t.identifier;
+      updateJoystick(t);
+    }, { passive: false });
+
+    joyZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) updateJoystick(t);
+      }
+    }, { passive: false });
+
+    function endJoystick(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) {
+          joyTouchId = null;
+          joyX = 0;
+          joyY = 0;
+          joyKnob.style.transform = 'translate(0px, 0px)';
+        }
+      }
+    }
+    joyZone.addEventListener('touchend', endJoystick);
+    joyZone.addEventListener('touchcancel', endJoystick);
+
+    // Mobile Right-Side Look Drag
+    const lookZone = document.getElementById('look-zone');
+    let lookTouchId = null;
+    let lastLookX = 0;
+    let lastLookY = 0;
+
+    lookZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (lookTouchId !== null) return;
+      const t = e.changedTouches[0];
+      lookTouchId = t.identifier;
+      lastLookX = t.clientX;
+      lastLookY = t.clientY;
+    }, { passive: false });
+
+    lookZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === lookTouchId) {
+          const dx = t.clientX - lastLookX;
+          const dy = t.clientY - lastLookY;
+          lastLookX = t.clientX;
+          lastLookY = t.clientY;
+          const zoomScale = player.scoped ? (SCOPE_FOV / BASE_FOV) * 0.75 : 1;
+          const sens = 0.0055 * zoomScale;
+          player.yaw -= dx * sens;
+          player.pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, player.pitch - dy * sens));
+        }
+      }
+    }, { passive: false });
+
+    function endLook(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier === lookTouchId) lookTouchId = null;
+      }
+    }
+    lookZone.addEventListener('touchend', endLook);
+    lookZone.addEventListener('touchcancel', endLook);
+
+    // Mobile Action Buttons
+    const btnFire = document.getElementById('btn-fire');
+    btnFire.addEventListener('touchstart', (e) => { e.preventDefault(); firing = true; btnFire.classList.add('active'); }, { passive: false });
+    btnFire.addEventListener('touchend', (e) => { e.preventDefault(); firing = false; btnFire.classList.remove('active'); }, { passive: false });
+    btnFire.addEventListener('touchcancel', () => { firing = false; btnFire.classList.remove('active'); });
+
+    btnScope.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!player.reloading) setScoped(!player.scoped);
+    }, { passive: false });
+
+    document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (player.grounded) {
+        player.vel.y = 7.2;
+        player.grounded = false;
+      }
+    }, { passive: false });
+
+    document.getElementById('btn-reload').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!player.reloading && player.ammo < player.maxAmmo) reload();
+    }, { passive: false });
+
+    document.getElementById('btn-menu').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      exitGameToMenu();
+    }, { passive: false });
 
     function reload() {
       setScoped(false);
@@ -884,7 +1096,7 @@
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      if (isLocked) {
+      if (isPlaying) {
         if (firing) shoot();
         if (player.fireCooldown > 0) player.fireCooldown -= dt;
 
@@ -896,7 +1108,11 @@
         if (keys['KeyS']) moveDir.sub(forward);
         if (keys['KeyD']) moveDir.add(right);
         if (keys['KeyA']) moveDir.sub(right);
-        if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+        if (Math.abs(joyY) > 0.08) moveDir.addScaledVector(forward, -joyY);
+        if (Math.abs(joyX) > 0.08) moveDir.addScaledVector(right, joyX);
+
+        if (moveDir.lengthSq() > 1) moveDir.normalize();
 
         const baseSpeed = keys['ShiftLeft'] ? 4.2 : 8.5;
         const speed = player.scoped ? baseSpeed * 0.65 : baseSpeed;
