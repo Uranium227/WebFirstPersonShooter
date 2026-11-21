@@ -332,7 +332,7 @@
     scene.add(dirLight);
 
     const colliders = [];
-    const dynamicColliders = []; // { box, mesh, life }
+    const dynamicColliders = [];
     const wallMeshes = [];
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x232732, roughness: 0.85 });
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x353b4a, roughness: 0.7 });
@@ -436,6 +436,7 @@
     spawnBot(8, 32, 5);
 
     const remotePlayers = new Map();
+    const connections = new Map();
 
     function makeNameSprite(text, charKey = 'fire') {
       const cfg = CHARACTERS[charKey] || CHARACTERS.fire;
@@ -682,7 +683,6 @@
         })
         .join('');
     }
-    selectCharacter('fire');
 
     // ==========================================
     // SKILLS: ICE WALL, FIREBALL, WATERBALL, SMOKE
@@ -839,8 +839,7 @@
     let peer = null;
     let isHost = false;
     let currentRoomCode = '';
-    let joinTimeout = null;
-    const connections = new Map();
+    let netTimeout = null;
 
     function randomCode() {
       return Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -860,9 +859,9 @@
     }
 
     function resetButtons() {
-      hostBtn.disabled = false;
+      if (hostBtn) hostBtn.disabled = false;
       joinBtn.disabled = false;
-      if (joinTimeout) { clearTimeout(joinTimeout); joinTimeout = null; }
+      if (netTimeout) { clearTimeout(netTimeout); netTimeout = null; }
     }
 
     function broadcast(data, excludeId = null) {
@@ -878,7 +877,7 @@
 
     function setupConnection(conn) {
       conn.on('open', () => {
-        if (joinTimeout) { clearTimeout(joinTimeout); joinTimeout = null; }
+        if (netTimeout) { clearTimeout(netTimeout); netTimeout = null; }
         connections.set(conn.peer, conn);
         createRemotePlayer(conn.peer, 'Connecting...', 'fire');
         conn.send({
@@ -1041,7 +1040,13 @@
       statusText.textContent = 'Connecting to signaling server...';
       if (!initPeer(ROOM_PREFIX + code)) return;
 
+      netTimeout = setTimeout(() => {
+        statusText.textContent = 'Timed out connecting to signaling server. Try again.';
+        resetButtons();
+      }, 8000);
+
       peer.on('open', () => {
+        if (netTimeout) { clearTimeout(netTimeout); netTimeout = null; }
         hostBtn.remove();
         deployBtn.classList.remove('secondary');
         roomCodeDisplay.textContent = code;
@@ -1062,12 +1067,12 @@
       joinInput.value = clean;
       isHost = false;
       currentRoomCode = clean;
-      hostBtn.disabled = true;
+      if (hostBtn) hostBtn.disabled = true;
       joinBtn.disabled = true;
       statusText.textContent = `Connecting to signaling server to join ${clean}...`;
       if (!initPeer()) return;
 
-      joinTimeout = setTimeout(() => {
+      netTimeout = setTimeout(() => {
         if (connections.size === 0) {
           statusText.textContent = `Timed out joining ${clean}. Make sure Host is open and try again.`;
           resetButtons();
@@ -1095,12 +1100,6 @@
       copyLinkBtn.textContent = 'COPIED!';
       setTimeout(() => { copyLinkBtn.textContent = 'COPY INVITE'; }, 1500);
     });
-
-    const urlRoom = new URLSearchParams(window.location.search).get('room');
-    if (urlRoom) {
-      joinInput.value = urlRoom.toUpperCase();
-      joinRoom(urlRoom);
-    }
 
     function respawnLocalPlayer() {
       setScoped(false);
@@ -1454,6 +1453,14 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
+    // Initialize default character & auto-join if ?room= is in URL
+    selectCharacter('fire');
+    const urlRoom = new URLSearchParams(window.location.search).get('room');
+    if (urlRoom) {
+      joinInput.value = urlRoom.toUpperCase();
+      joinRoom(urlRoom);
+    }
+
     let lastTime = performance.now();
 
     function animate(now) {
@@ -1461,7 +1468,6 @@
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      // Cooldown & blind timers
       if (player.skillCooldown > 0) {
         player.skillCooldown = Math.max(0, player.skillCooldown - dt);
         updateSkillUI();
@@ -1528,7 +1534,6 @@
       camera.rotation.y = player.yaw + player.recoilYaw;
       camera.rotation.x = player.pitch + player.recoilPitch;
 
-      // Update projectiles (fireball & waterball)
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
         p.life -= dt;
@@ -1562,7 +1567,6 @@
         }
       }
 
-      // Update ice walls
       for (let i = dynamicColliders.length - 1; i >= 0; i--) {
         const dc = dynamicColliders[i];
         dc.life -= dt;
@@ -1576,7 +1580,6 @@
         }
       }
 
-      // Update smoke clouds
       for (let i = smokeClouds.length - 1; i >= 0; i--) {
         const s = smokeClouds[i];
         s.life -= dt;
@@ -1591,7 +1594,6 @@
         }
       }
 
-      // Update explosion/splash bursts
       for (let i = bursts.length - 1; i >= 0; i--) {
         const b = bursts[i];
         b.life -= dt;
