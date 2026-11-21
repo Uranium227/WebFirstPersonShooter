@@ -213,7 +213,7 @@
         <div class="section-label">CALLSIGN</div>
         <input id="name-input" type="text" maxlength="14" placeholder="Enter callsign" />
         <div class="divider"></div>
-        <div class="section-label">MULTIPLAYER ROOM</div>
+        <div class="section-label">MULTIPLAYER ROOM (PVP)</div>
         <button id="host-btn">HOST NEW ROOM</button>
         <div class="row">
           <input id="join-input" type="text" placeholder="ROOM CODE OR INVITE URL" />
@@ -427,6 +427,7 @@
     camera.add(weaponGroup);
     scene.add(camera);
 
+    // Practice Dummies (Solo Range Only)
     const targets = [];
     const shootableMeshes = [...wallMeshes];
     const botBodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 });
@@ -444,14 +445,29 @@
       group.position.set(x, 0, z);
       scene.add(group);
 
-      const bot = { group, hp: 100, originX: x, range, speed: 1.6, phase: Math.random() * 6, respawnTimer: 0 };
+      const bot = { group, body, head, hp: 100, originX: x, range, speed: 1.6, phase: Math.random() * 6, respawnTimer: 0 };
       body.userData = { type: 'bot', bot, isHead: false };
       head.userData = { type: 'bot', bot, isHead: true };
       targets.push(bot);
       shootableMeshes.push(body, head);
     }
-    spawnBot(-8, -32, 5);
-    spawnBot(8, 32, 5);
+
+    function clearBots() {
+      for (const b of targets) {
+        scene.remove(b.group);
+        const idxB = shootableMeshes.indexOf(b.body);
+        if (idxB > -1) shootableMeshes.splice(idxB, 1);
+        const idxH = shootableMeshes.indexOf(b.head);
+        if (idxH > -1) shootableMeshes.splice(idxH, 1);
+      }
+      targets.length = 0;
+    }
+
+    function spawnSoloBots() {
+      clearBots();
+      spawnBot(-8, -32, 5);
+      spawnBot(8, 32, 5);
+    }
 
     const remotePlayers = new Map();
     const connections = new Map();
@@ -643,6 +659,7 @@
 
     function showConnectView() {
       inSession = false;
+      clearBots();
       viewConnect.classList.remove('hidden');
       viewLoadout.classList.add('hidden');
       setConnectButtonsDisabled(false);
@@ -654,12 +671,15 @@
       viewLoadout.classList.remove('hidden');
 
       if (mode === 'solo') {
+        spawnSoloBots();
         roomRoleText.innerHTML = 'MODE: <strong>SOLO RANGE</strong>';
         copyLinkBtn.style.display = 'none';
       } else if (mode === 'host') {
+        clearBots();
         roomRoleText.innerHTML = `HOSTING ROOM: <strong>${code}</strong>`;
         copyLinkBtn.style.display = 'inline-block';
       } else {
+        clearBots();
         roomRoleText.innerHTML = `JOINED ROOM: <strong>${code}</strong>`;
         copyLinkBtn.style.display = 'inline-block';
       }
